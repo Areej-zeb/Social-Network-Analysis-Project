@@ -1,0 +1,116 @@
+#include <iostream>
+#include <vector>
+#include <unordered_map>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+using namespace std;
+
+// Structure for graph edges
+struct Edge {
+    int to, weight;
+};
+
+// Function to compute the longest increasing path
+pair<int, vector<int>> longest_chain(const unordered_map<int, vector<Edge>>& graph, const unordered_map<int, int>& influences) {
+    unordered_map<int, int> dp; // dp[node] stores the longest chain length starting from 'node'
+    unordered_map<int, int> parent; // To reconstruct the path
+
+    auto dfs = [&](int node, auto&& dfs_ref) -> int {
+        if (dp.count(node)) return dp[node]; // Already computed
+
+        dp[node] = 1; // Minimum length is 1 (node itself)
+        parent[node] = -1; // No parent initially
+
+        for (const Edge& edge : graph.at(node)) {
+            if (influences.at(edge.to) > influences.at(node)) { // Ensure strictly increasing order
+                int current_length = 1 + dfs_ref(edge.to, dfs_ref);
+                if (current_length > dp[node]) {
+                    dp[node] = current_length;
+                    parent[node] = edge.to; // Update parent
+                }
+            }
+        }
+
+        return dp[node];
+    };
+
+    // Run DFS on all nodes
+    int max_length = 0;
+    int start_node = -1;
+    for (const auto& [node, _] : graph) {
+        int current_length = dfs(node, dfs);
+        if (current_length > max_length) {
+            max_length = current_length;
+            start_node = node;
+        }
+    }
+
+    // Reconstruct the path
+    vector<int> path;
+    for (int at = start_node; at != -1; at = parent[at]) {
+        path.push_back(at);
+    }
+
+    return {max_length, path};
+}
+
+int main() {
+    // File inputs
+    string graph_file = "social-network-proj-graph.txt";
+    string influences_file = "social-network-proj-Influences.txt";
+    string labels_file = "social-network-proj-LABELS.txt";
+
+    ifstream graph_input(graph_file);
+    ifstream influences_input(influences_file);
+    ifstream labels_input(labels_file);
+
+    if (!graph_input.is_open() || !influences_input.is_open() || !labels_input.is_open()) {
+        cerr << "Error: Could not open one or more input files." << endl;
+        return 1;
+    }
+
+    // Graph structure
+    unordered_map<int, vector<Edge>> graph;
+
+    string line;
+    while (getline(graph_input, line)) {
+        stringstream ss(line);
+        int from, to, weight;
+        ss >> from >> to >> weight;
+        graph[from].push_back({to, weight});
+        graph[to].push_back({from, weight}); // Undirected graph
+    }
+
+    // Influence scores
+    unordered_map<int, int> influences;
+    while (getline(influences_input, line)) {
+        stringstream ss(line);
+        int node, score;
+        ss >> node >> score;
+        influences[node] = score;
+    }
+
+    // Labels
+    unordered_map<int, string> labels;
+    while (getline(labels_input, line)) {
+        stringstream ss(line);
+        int node;
+        string label;
+        ss >> node >> label;
+        labels[node] = label;
+    }
+
+    // Run the longest chain computation
+    auto [max_length, path] = longest_chain(graph, influences);
+
+    // Output results
+    cout << "Longest Chain Length: " << max_length << endl;
+    cout << "User Sequence: ";
+    for (int node : path) {
+        cout << node << " (" << labels[node] << ") ";
+    }
+    cout << endl;
+
+    return 0;
+}
