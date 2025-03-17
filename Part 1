@@ -1,0 +1,128 @@
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <queue>
+#include <limits>
+#include <unordered_map>
+#include <sstream>
+#include <algorithm>
+
+using namespace std;
+
+// Structure for graph edges
+struct Edge
+{
+    int to, weight;
+};
+
+// Dijkstra's algorithm function
+void dijkstra(const unordered_map<int, vector<Edge>> &graph, int start, int end)
+{
+    // Priority queue to store (distance, node)
+    priority_queue<pair<int, int>, vector<pair<int, int>>, greater<>> pq;
+
+    // Distance map: initialize all distances to infinity
+    unordered_map<int, int> distance;
+    for (const auto &node : graph)
+    {
+        distance[node.first] = numeric_limits<int>::max();
+    }
+    distance[start] = 0;
+
+    // Parent map to reconstruct the shortest path
+    unordered_map<int, int> parent;
+    parent[start] = -1;
+
+    // Push the starting node into the priority queue
+    pq.push({0, start});
+
+    while (!pq.empty())
+    {
+        int current_dist = pq.top().first;
+        int current_node = pq.top().second;
+        pq.pop();
+
+        // If we've reached the destination, break early
+        if (current_node == end)
+            break;
+
+        // Explore neighbors
+        for (const Edge &edge : graph.at(current_node))
+        {
+            int neighbor = edge.to;
+            int weight = edge.weight;
+
+            // Relaxation step
+            if (current_dist + weight < distance[neighbor])
+            {
+                distance[neighbor] = current_dist + weight;
+                parent[neighbor] = current_node;
+                pq.push({distance[neighbor], neighbor});
+            }
+        }
+    }
+
+    // Output results
+    if (distance[end] == numeric_limits<int>::max())
+    {
+        cout << "No path exists between nodes " << start << " and " << end << "." << endl;
+    }
+    else
+    {
+        cout << "Shortest Distance: " << distance[end] << endl;
+
+        // Reconstruct and print the path
+        vector<int> path;
+        for (int at = end; at != -1; at = parent[at])
+        {
+            path.push_back(at);
+        }
+        reverse(path.begin(), path.end());
+        cout << "Path: ";
+        for (int node : path)
+        {
+            cout << node << " ";
+        }
+        cout << endl;
+    }
+}
+
+int main()
+{
+    // File input
+    string filename = "social-network-proj-graph.txt";
+    ifstream file(filename);
+    if (!file.is_open())
+    {
+        cerr << "Error: Could not open file " << filename << endl;
+        return 1;
+    }
+
+    // Graph structure
+    unordered_map<int, vector<Edge>> graph;
+    string line;
+
+    // Read the file line by line
+    while (getline(file, line))
+    {
+        stringstream ss(line);
+        int from, to, weight;
+        ss >> from >> to >> weight;
+        graph[from].push_back({to, weight});
+        graph[to].push_back({from, weight}); // Since the graph is undirected
+    }
+
+    file.close();
+
+    // Get start and end nodes from user
+    int start, end;
+    cout << "Enter start node: ";
+    cin >> start;
+    cout << "Enter end node: ";
+    cin >> end;
+
+    // Run Dijkstra's algorithm
+    dijkstra(graph, start, end);
+
+    return 0;
+}
